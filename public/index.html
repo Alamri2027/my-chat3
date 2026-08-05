@@ -1,134 +1,27 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>غرف الدردشة</title>
-
-<style>
-body{
-font-family:Arial;
-background:#111;
-color:#fff;
-margin:0;
-padding:20px;
-}
-
-.container{
-max-width:600px;
-margin:auto;
-}
-
-input,button{
-width:100%;
-padding:12px;
-margin:5px 0;
-font-size:16px;
-border:none;
-border-radius:8px;
-}
-
-button{
-background:#00b894;
-color:#fff;
-}
-
-#messages{
-height:350px;
-overflow-y:auto;
-background:#222;
-padding:10px;
-border-radius:10px;
-margin:10px 0;
-}
-
-.msg{
-margin:8px 0;
-padding:8px;
-background:#333;
-border-radius:8px;
-}
-
-#users{
-background:#1b1b1b;
-padding:10px;
-margin-top:10px;
-border-radius:10px;
-}
-</style>
+<title>My Chat</title>
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
-<div class="container">
-
-<h2>غرف الدردشة</h2>
-
-<input id="username" placeholder="اسمك">
-
-<input id="room" placeholder="اسم الغرفة">
-
-<button onclick="joinRoom()">دخول الغرفة</button>
+<div class="chat">
+<h2>💬 My Chat</h2>
 
 <div id="messages"></div>
 
-<input id="message" placeholder="اكتب رسالة...">
-
+<div class="send">
+<input id="message" type="text" placeholder="اكتب رسالة...">
 <button onclick="sendMessage()">إرسال</button>
-
-<div id="users"></div>
+</div>
 
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-
-<script>
-
-const socket=io();
-
-const messages=document.getElementById("messages");
-
-function joinRoom(){
-
-const username=document.getElementById("username").value;
-
-const room=document.getElementById("room").value;
-
-socket.emit("join-room",{username,room});
-
-}
-
-function sendMessage(){
-
-const text=document.getElementById("message").value;
-
-socket.emit("chat-message",text);
-
-document.getElementById("message").value="";
-
-}
-
-socket.on("message",(data)=>{
-
-messages.innerHTML+=`
-<div class="msg">
-<b>${data.user}</b><br>
-${data.text}
-</div>
-`;
-
-messages.scrollTop=messages.scrollHeight;
-
-});
-
-socket.on("room-users",(users)=>{
-
-document.getElementById("users").innerHTML=
-"<b>المتصلون:</b><br>"+users.join("<br>");
-
-});
-
-</script>
+<script src="client.js"></script>
 
 </body>
 </html>
