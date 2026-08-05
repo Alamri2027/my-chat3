@@ -8,34 +8,41 @@ const bcrypt = require("bcryptjs");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
 
 app.use(express.static("public"));
 
-const users = {};
-
 const adapter = new JSONFile("db.json");
+
 const db = new Low(adapter, {
   users: [],
   messages: []
 });
 
+const onlineUsers = {};
+
 async function initDB() {
   await db.read();
 
-  if (!db.data) {
-    db.data = {
-      users: [],
-      messages: []
-    };
-    await db.write();
-  }
+  db.data ||= {
+    users: [],
+    messages: []
+  };
+
+  await db.write();
 }
 
 initDB();
 
 io.on("connection", (socket) => {
 
+  console.log("User Connected:", socket.id);
+  // تسجيل مستخدم جديد
   socket.on("register", async ({ username, password }, callback) => {
 
     await db.read();
@@ -66,6 +73,7 @@ io.on("connection", (socket) => {
 
   });
 
+  // تسجيل الدخول
   socket.on("login", async ({ username, password }, callback) => {
 
     await db.read();
@@ -94,13 +102,12 @@ io.on("connection", (socket) => {
       success: true
     });
 
-  });
-
+  });  // الانضمام إلى غرفة
   socket.on("join-room", async ({ username, room }) => {
 
     socket.join(room);
 
-    users[socket.id] = {
+    onlineUsers[socket.id] = {
       username,
       room
     };
@@ -111,10 +118,10 @@ io.on("connection", (socket) => {
       m => m.room === room
     );
 
-    messages.forEach(m => {
+    messages.forEach(msg => {
       socket.emit("message", {
-        user: m.user,
-        text: m.text
+        user: msg.user,
+        text: msg.text
       });
     });
 
@@ -127,61 +134,61 @@ io.on("connection", (socket) => {
 
   });
 
-  socket.on("chat-message", async (msg) => {
+  // إرسال رسالة
+  socket.on("chat-message", async (text) => {
 
-    const user = users[socket.id];
+    const user = onlineUsers[socket.id];
 
     if (!user) return;
 
-    db.data.messages.push({
+    const message = {
       room: user.room,
       user: user.username,
-      text: msg,
+      text,
       time: Date.now()
-    });
+    };
+
+    db.data.messages.push(message);
 
     await db.write();
 
     io.to(user.room).emit("message", {
       user: user.username,
-      text: msg
+      text
     });
 
   });
 
+  // عند خروج المستخدم
   socket.on("disconnect", () => {
 
-    const user = users[socket.id];
+    const user = onlineUsers[socket.id];
 
-    if (user) {
+    if (!user) return;
 
-      io.to(user.room).emit("message", {
-        user: "النظام",
-        text: `${user.username} غادر الغرفة`
-      });
+    io.to(user.room).emit("message", {
+      user: "النظام",
+      text: `${user.username} غادر الغرفة`
+    });
 
-      delete users[socket.id];
+    delete onlineUsers[socket.id];
 
-      updateUsers(user.room);
+    updateUsers(user.room);
 
-    }
-
-  });
-
-});
+  });});
 
 function updateUsers(room) {
 
-  const list = Object.values(users)
-    .filter(u => u.room === room)
-    .map(u => u.username);
+  const users = Object.values(onlineUsers)
+    .filter(user => user.room === room)
+    .map(user => user.username);
 
-  io.to(room).emit("room-users", list);
+  io.to(room).emit("room-users", users);
 
 }
 
-const PORT = 3004;
+const PORT = process.env.PORT || 3004;
 
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
